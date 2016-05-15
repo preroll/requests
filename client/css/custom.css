@@ -1,0 +1,14 @@
+/*!
+ * Custom v1.0.0
+ *
+ * Copyright 2016 Preroll, Inc
+ * Licensed under the Apache License v2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Designed and built with all the love in the world.
+ */
+
+body input.btn,
+body input.btn-primary {
+	font-size: 18px;
+}

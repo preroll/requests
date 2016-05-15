@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en" ng-app>
+  <head>
+    <title>Request Example</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" href="/css/bootstrap-responsive.min.css">
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <style>
+      body {
+        padding-top: 60px;
+      }
+    </style>
+    <script>
+      function RequestController($scope) {
+        var socket = io.connect();
+
+				// ADMIN: Our login user/pass.
+				$scope.useradmin = false;
+				$scope.userpass = '';
+
+        $scope.messages = [];
+        $scope.roster = [];
+				
+				// Client(s).
+        $scope.name = '';
+        $scope.text = '';
+
+
+				// Socket.
+				
+        socket.on('connect', function () {
+          $scope.setName();
+        });
+
+        socket.on('message', function (msg) {
+          $scope.messages.push(msg);
+          $scope.$apply();
+        });
+
+        socket.on('roster', function (names) {
+          $scope.roster = names;
+          
+					$scope.$apply();
+        });
+				
+        socket.on('login', function (msg) {
+          $scope.usermessages.push(msg);
+          $scope.roster = names;
+		
+          $scope.$apply();
+        });
+				
+				// Scopes.
+				
+        $scope.send = function send() {
+          console.log('Sending message:', $scope.text);
+					
+          socket.emit('message', $scope.text);
+          $scope.text = '';
+        };
+
+        $scope.setName = function setName() {
+          socket.emit('identify', $scope.name);
+        };
+				
+				// ADMIN: Our login function for admins.
+        $scope.login = function login() {
+          console.log('Logging in: xxx');
+
+					socket.emit('login', $scope.userpass);
+          
+					$scope.$apply();
+        };
+      }
+    </script>
+  </head>
+  <body>
+    <div class="container" ng-controller="RequestController">
+      <div class="navbar navbar-fixed-top navbar-inverse">
+        <div class="navbar-inner">
+          <div class="pull-right">
+            <a href="https://c9.io" class="brand">Cloud9 IDE</a>
+          </div>
+        </div>
+      </div>
+			
+			<section id="admin-login">
+	      <div class="page-header">
+	        <h1>Admin // Login</h1>
+	      </div>
+	      <div class="row">
+	        <form ng-submit="login()">
+	          <div class="input-append span7">
+	            <input type="password" class="span6" ng-model="userpass" placeholder="Userpass">
+	            <input type="submit" class="btn btn-primary" value="Login" ng-disabled="!userpass">
+	          </div>
+	        </form>
+	      </div>
+			</section>
+			
+			<section id="admin-requests">
+	      <div class="page-header">
+	        <h1>Admin // View Request(s)</h1>
+	      </div>
+	      <div class="row">
+	        <div class="span3">
+	          <ul class="nav nav-list well">
+	            <li class="nav-header">Users</li>
+	            <li ng-repeat="user in roster" ng-bind="user">
+	            </li>
+	          </ul>
+	        </div>
+	        <div class="span9">
+	          <table class="table table-striped table-bordered">
+	            <thead>
+	              <tr>
+	                <th class="span2">Name</th>
+	                <th class="span7">Text</th>
+	              </tr>
+	            </thead>
+	            <tbody>
+	              <tr ng-repeat="message in messages">
+	                <td class="span2" ng-bind="message.name"></td>
+	                <td class="span7" ng-bind="message.text"></td>
+	              </tr>
+	            </tbody>
+	          </table>
+	        </div>
+	      </div>
+			</section>
+			
+			<section id="client-request">
+	      <div class="page-header">
+	        <h1>Make a Request...</h1>
+	      </div>
+	      <div class="row controls">
+	        <form ng-submit="send()">
+	          <div class="span2"><input type="text" class="input-block-level" ng-model="name" ng-change="setName()" placeholder="Your Name"></div>
+	          <div class="input-append span7">
+	            <input type="text" class="span6" ng-model="text" placeholder="Message">
+	            <input type="submit" class="btn btn-primary" value="Send Request" ng-disabled="!text">
+	          </div>
+	        </form>
+	      </div>
+			</section>
+		
+    </div>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/angular.min.js"></script>
+  </body>
+</html>
