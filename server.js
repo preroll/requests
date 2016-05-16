@@ -3,12 +3,13 @@
 //
 // A simple chat server using Socket.IO, Express, and Async.
 //
+
 var http = require('http');
 var path = require('path');
 
-var async = require('async');
-var socketio = require('socket.io');
-var express = require('express');
+var async 		= require('async');
+var socketio 	= require('socket.io');
+var express 	= require('express');
 
 //
 // ## SimpleServer `SimpleServer(obj)`
@@ -28,42 +29,100 @@ var sockets 	= [];
 // ADMIN: Protected arrays to store admins + messages.
 var admins		= [];
 
-var clients		= [];
-var messages 	= [];
+// Store uuid/name/text[] packets.
+var packets 	= [];
 
-io.on('connection', function (socket) {		
+// (^^^ would use full Model/ORM in production..).
+//
+// var packet = {
+// 	uuid: uuid(),
+// 	name: String(name || 'Anon')
+// 	text: ['lorem ipsum dolar']
+// }
+
+
+io.on('connection', function (socket) {
+	
+		// Collect *ALL* sockets.
     sockets.push(socket);
 		
-		// ADMIN: login the user
-		
-    socket.on('identify', function (name) {
-      socket.set('name', String(name || 'Anon'), function (err) {
-        updateRoster();
-      });
-    });
-		
-    socket.on('login', function (userpass) {
-      var userpass = String(userpass || '');
+		// First method a Client Socket will call to Register *all* users.
+    socket.on('register', function (client) {
 			
-			if (userpass == 'xxx') {
-				// update the socket to be an admin
-				socket.set('useradmin', true);
-		    socket.emit('messages', messages);
-			}
-    });
-		
-    socket.on('message', function (message) {
-      console.log('message.user:', message.user);
-      console.log('message.text:', message.text);
-      
-			var text = String(message.text || '');
+			// Our return packet.
+			var packet = null;
 			
-      if (!text)
-        return;
-			
-      messages.push(message);
-    });
+			if (!client || !client.uuid) {
+				// Generate a default UUID-based Packet.
+				// http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
+				var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+				    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+				    return v.toString(16);
+				})
 				
+				// New Packet.
+				packet = {
+					uuid: uuid, 
+					name: String(client.name || 'Anonymous'),
+					text: []
+				}
+	      console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+	      console.log('Register packet:', packet.uuid);
+				
+				// Set our server-side packet.
+				// todo: verify csrf or get the uuid and load from ORM
+				// before pushing into our server.packets.
+				packets.push({socket, packet});
+			} else {
+				// todo: add/real actual loading for existing 
+				// clients and verify their packet *from* the server
+				
+				// Existing Packet.
+				packet = {
+					uuid: client.uuid, 
+					name: String(client.name || 'Anonymous'),
+					text: []
+				}
+			}
+			
+			// Emit potentially updated packet to Client.
+      socket.emit('online', packet);
+			
+      console.log('Online packet:', packet.uuid);
+      console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+    });
+		
+		// Messaging.
+    socket.on('message', function (packet) {
+      console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+      console.log('message.client:', packet.client.uuid);
+      console.log('message.text:', packet.message);
+
+			var text = String(packet.message || '');
+
+			if (!text)
+				return;
+
+			// messages.push(message);
+      console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+    });
+		
+		// // ADMIN: login an 'ADMIN' user.
+		//     socket.on('login', function (userpass) {
+		//       console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+		//       console.log('Logging in: xxx');
+		//
+		// 	//       var userpass = String(userpass || '');
+		// 	//
+		// 	// if (userpass == 'xxx') {
+		// 	// 	// update the socket to be an admin
+		// 	// 	socket.emit('upgrades', {useradmin: true});
+		// 	// 		    socket.emit('messages', messages);
+		// 	// }
+		//     });
+		
+	
+		// Exit.
     socket.on('disconnect', function () {
       sockets.splice(sockets.indexOf(socket), 1);
       updateRoster();
@@ -71,9 +130,34 @@ io.on('connection', function (socket) {
 		
 });
 
+// Core APIs.
+
 function updateRoster() {
+
+	// todo: map to admin sockets
+	
+  // async.map(
+  //   sockets,
+  //   function (socket, callback) {
+  //     socket.get('name', callback);
+  //   },
+  //   function (err, names) {
+  //     broadcast('roster', names);
+  //   }
+  // );
+	
+	
+}
+
+function broadcast(event, data) {
+  sockets.forEach(function (socket) {
+    socket.emit(event, data);
+  });
+}
+
+function replyMessage() {
   async.map(
-    admins,
+    messages,
     function (socket, callback) {
       socket.get('name', callback);
     },
@@ -83,12 +167,7 @@ function updateRoster() {
   );
 }
 
-function broadcast(event, data) {
-  sockets.forEach(function (socket) {
-    socket.emit(event, data);
-  });
-}
-
+// Tools.
 
 // Server
 
