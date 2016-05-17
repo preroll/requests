@@ -7,9 +7,9 @@
 var http = require('http');
 var path = require('path');
 
-var async 		= require('async');
-var socketio 	= require('socket.io');
-var express 	= require('express');
+var async     = require('async');
+var socketio   = require('socket.io');
+var express   = require('express');
 
 //
 // ## SimpleServer `SimpleServer(obj)`
@@ -24,116 +24,114 @@ var io = socketio.listen(server);
 router.use(express.static(path.resolve(__dirname, 'client')));
 
 // Sockets.
-var sockets 	= [];
+var sockets   = [];
 
 // ADMIN: Protected arrays to store admins + messages.
-var admins		= [];
+var admins    = [];
 
 // Store uuid/name/text[] packets.
-var bundles 	= [];
+var bundles   = [];
 
 // (^^^ would use full Model/ORM in production..).
 //
 // var examplePacket = {
-// 	uuid: uuid(),
-// 	name: String(name || 'Anon')
-// 	text: ['lorem ipsum dolar']
+//   uuid: uuid(),
+//   name: String(name || 'Anon')
+//   text: ['lorem ipsum dolar']
 // }
 
 io.on('connection', function (socket) {
-	
-		// Collect *ALL* sockets.
-    sockets.push(socket);
-		
-		// First method a Client Socket will call to Connect/Register/Online *all* users.
-    socket.on('register', function (client) {
-			
-			// Our return packet.
-			var packet = null;
-			
-			if (!client || !client.uuid) {
-				// Generate a default UUID-based Packet.
-				// http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
-				var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-				    var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
-				    return v.toString(16);
-				})
-				
-				// New Packet.
-				packet = {
-					uuid: uuid, 
-					name: String(client.name || 'Anonymous'),
-					text: []
-				}
-	      console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
-	      console.log('Register packet:', packet.uuid);
-				
-				// Set our server-side packet.
-				// todo: verify csrf or get the uuid and load from ORM
-				// before pushing into our server.packets.
-				bundles.push({socket: socket, packet: packet});
-			} else {
-				// todo: add/real actual loading for existing 
-				// clients and verify their packet *from* the server
-				
-				// Existing Packet.
-				packet = {
-					uuid: client.uuid, 
-					name: String(client.name || 'Anonymous'),
-					text: []
-				}
-			}
-			
-			// Emit potentially updated packet to Client.
-      socket.emit('online', packet);
-			
-      console.log('Online packet:', packet.uuid);
+  
+  // Collect *ALL* sockets.
+  sockets.push(socket);
+    
+  // First method a Client Socket will call to Connect/Register/Online *all* users.
+  socket.on('register', function (client) {
+    
+    // Our return packet.
+    var packet = null;
+    
+    if (!client || !client.uuid) {
+      // Generate a default UUID-based Packet.
+      // http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
+      var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+          var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+          return v.toString(16);
+      })
+      
+      // New Packet.
+      packet = {
+        uuid: uuid, 
+        name: String(client.name || 'Anonymous'),
+        text: []
+      }
       console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
-    });
-		
-		// Messaging.
-    socket.on('message', function (client, message) {
-      console.log('xxx Message xxxxxxxxxxxxxxxxxxxxxxxx');
-      console.log('client.uuid:', client.uuid);
-      console.log('message.text:', message);
+      console.log('Register packet:', packet.uuid);
+      
+      // Set our server-side packet.
+      // todo: verify csrf or get the uuid and load from ORM
+      // before pushing into our server.packets.
+      bundles.push({socket: socket, packet: packet});
+      
+    } else {
+      // todo: add/real actual loading for existing 
+      // clients and verify their packet *from* the server
+      
+      // Existing Packet.
+      packet = {
+        uuid: client.uuid, 
+        name: String(client.name || 'Anonymous'),
+        text: []
+      }
+    }
+    
+    // Emit potentially updated packet to Client.
+    socket.emit('online', packet);
+    
+    console.log('Online packet:', packet.uuid);
+    console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+  });
+  
+  // Messaging.
+  socket.on('message', function (client, message) {
+    console.log('xxx Message xxxxxxxxxxxxxxxxxxxxxxxx');
+    console.log('client.uuid:', client.uuid);
+    console.log('message.text:', message);
 
-			// todo: scrub message from client
-			var text = String(message || '');
-			if (!text)
-				return;
-			
-			// Our potential return packet.
-			var packet = null;
-		
-			bundles.map(function (bundle, index, array) { 
-				if (bundle.packet.uuid == client.uuid) {
-					// todo: error check packet->client to resist client side slipstreaming
-					bundle = bundles[index];
-				
-					// update the client's messages
-					bundle.packet.text.push(message)
-					
-					// collect the packet for return.
-					packet = bundle.packet;
-					
-					// Our updates.
-					socket.emit('update', bundle.packet);
-				}
-			});
-			
-			// todo: update *all* other sockets that we have a new packet
-			
-      console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+    // todo: scrub message from client
+    var text = String(message || '');
+    if (!text)
+      return;
+    
+    // Our potential return packet.
+    var packet = null;
+  
+    bundles.map(function (bundle, index, array) { 
+      if (bundle.packet.uuid == client.uuid) {
+        // todo: error check packet->client to resist client side slipstreaming
+        bundle = bundles[index];
+      
+        // update the client's messages
+        bundle.packet.text.push(message)
+        
+        // collect the packet for return.
+        packet = bundle.packet;
+        
+        // Our updates.
+        socket.emit('update', bundle.packet);
+      }
     });
-			
-		// Exit.
-    socket.on('disconnect', function () {
-      sockets.splice(sockets.indexOf(socket), 1);
-    });
-		
+    
+    // todo: update *all* other sockets that we have a new packet
+    console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+  });
+    
+  // Exit.
+  socket.on('disconnect', function () {
+    sockets.splice(sockets.indexOf(socket), 1);
+  });
+  
 });
-
-// Tools.
 
 // Server
 
