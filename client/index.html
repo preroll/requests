@@ -27,7 +27,8 @@
 			// Packets (try to init an exsiting client *ONLY* by UUID)
 			// because the Server will load the rest of the Client model #todo
 			$scope.client = {
-				uuid: String(localStorage[client_uuid_string] || ''),
+				//uuid: String(localStorage[client_uuid_string] || ''),
+				uuid: null,
 				name: null,
 				text: []
 			};
@@ -36,7 +37,7 @@
 			// New Message
 			$scope.message = '';
 			
-			// APIs.
+			// Connect APIs.
 			
 			// Connect *ALL* clients.
       socket.on('connect', function () {
@@ -76,35 +77,32 @@
         $scope.$apply();
       });
 			
+			// Message APIs.
+			
 			// Send a packet/request/message.
 			$scope.submitMessage = function submitMessage() {
 	      console.log('Message.');
 				
-        socket.emit('message', {client: $scope.client, message: $scope.message});
+        socket.emit('message', $scope.client, $scope.message);
       };
 			
-      socket.on('packet', function (packet) {
-	      console.log('Packet.');
-				
-				$scope.client = packet;				
+      socket.on('update', function (packet) {
+	      console.log('Packets.');
 				
 				// Check if the packet is new?
-				var existingIndex	 = null;
-				var existingPacket = $scope.packets.find(function (item, index, array) { 
-					existingIndex = index;
-					(item.uuid == packet.uuid ? true : false);
+				var existingPacket = $scope.packets.find(function (item, index, array) {
+					
+					// Either update-in-place or swizzle the new packet into $scope?
+					if (item.uuid == packet.uuid) {
+						$scope.packets[index] = packet;
+					}
+					// } else {
+					// 	$scope.packets.push(packet);
+					// }
 				});
-				
-				// Either update-in-place or swizzle the new packet into $scope?
-				if (existingPacket) {
-					$scope.packets[existingIndex] = packet;
-				} else {
-					$scope.packets.push(packet);
-				}
 				
         $scope.$apply();
       });
-
     }
 		</script>
   </head>
@@ -123,10 +121,9 @@
 	        <h1>Hi. All Messages(s)</h1>
 				</header>
 	      <div class="row">
+					<form ng-submit="submitMessage()">
 	        <div class="span12">
-						<form ng-submit="submitMessage()">
 		        	<input type="text" class="span4" ng-model="client.name" placeholder="Nickname">
-							
 	          	<table class="table table-striped table-bordered">
 	            <thead>
 	              <tr>
@@ -135,9 +132,17 @@
 	              </tr>
 	            </thead>
 	            <tbody>
-	              <tr ng-repeat="packet in packets">
-	                <td class="span3" ng-bind="packet.name"></td>
-	                <td class="span9" ng-bind="packet.name"></td>
+	              <tr ng-repeat="client in packets">
+	                <td class="span3" ng-bind="client.name"></td>
+	                <td class="span9">
+				          	<table class="table">
+											<tbody>
+					              <tr ng-repeat="message in client.text">
+					                <td class="span9" ng-bind="message"></td>
+												</tr>
+	                		</tbody>
+										</table>
+									</td>
 								</tr>
 								<tr>
 									<td class="span3">
@@ -150,9 +155,9 @@
 	            </tbody>
 	          	</table>
 							
-						</form>
 	        </div>
 	      </div>
+				</form>
 			</section>
 			
 	    <header class="page-header row">

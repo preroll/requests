@@ -30,23 +30,22 @@ var sockets 	= [];
 var admins		= [];
 
 // Store uuid/name/text[] packets.
-var packets 	= [];
+var bundles 	= [];
 
 // (^^^ would use full Model/ORM in production..).
 //
-// var packet = {
+// var examplePacket = {
 // 	uuid: uuid(),
 // 	name: String(name || 'Anon')
 // 	text: ['lorem ipsum dolar']
 // }
-
 
 io.on('connection', function (socket) {
 	
 		// Collect *ALL* sockets.
     sockets.push(socket);
 		
-		// First method a Client Socket will call to Register *all* users.
+		// First method a Client Socket will call to Connect/Register/Online *all* users.
     socket.on('register', function (client) {
 			
 			// Our return packet.
@@ -72,7 +71,7 @@ io.on('connection', function (socket) {
 				// Set our server-side packet.
 				// todo: verify csrf or get the uuid and load from ORM
 				// before pushing into our server.packets.
-				packets.push({socket, packet});
+				bundles.push({socket: socket, packet: packet});
 			} else {
 				// todo: add/real actual loading for existing 
 				// clients and verify their packet *from* the server
@@ -93,79 +92,46 @@ io.on('connection', function (socket) {
     });
 		
 		// Messaging.
-    socket.on('message', function (packet) {
-      console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
-      console.log('message.client:', packet.client.uuid);
-      console.log('message.text:', packet.message);
+    socket.on('message', function (client, message) {
+      console.log('xxx Message xxxxxxxxxxxxxxxxxxxxxxxx');
+      console.log('client.uuid:', client.uuid);
+      console.log('message.text:', message);
 
-			var text = String(packet.message || '');
-
+			// todo: scrub message from client
+			var text = String(message || '');
 			if (!text)
 				return;
-
-			// messages.push(message);
+			
+			// Our potential return packet.
+			var packet = null;
+		
+			bundles.map(function (bundle, index, array) { 
+				if (bundle.packet.uuid == client.uuid) {
+					// todo: error check packet->client to resist client side slipstreaming
+					bundle = bundles[index];
+				
+					// update the client's messages
+					bundle.packet.text.push(message)
+					
+					// collect the packet for return.
+					packet = bundle.packet;
+					
+					// Our updates.
+					socket.emit('update', bundle.packet);
+				}
+			});
+			
+			// todo: update *all* other sockets that we have a new packet
+			
       console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
     });
-		
-		// // ADMIN: login an 'ADMIN' user.
-		//     socket.on('login', function (userpass) {
-		//       console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
-		//       console.log('Logging in: xxx');
-		//
-		// 	//       var userpass = String(userpass || '');
-		// 	//
-		// 	// if (userpass == 'xxx') {
-		// 	// 	// update the socket to be an admin
-		// 	// 	socket.emit('upgrades', {useradmin: true});
-		// 	// 		    socket.emit('messages', messages);
-		// 	// }
-		//     });
-		
-	
+			
 		// Exit.
     socket.on('disconnect', function () {
       sockets.splice(sockets.indexOf(socket), 1);
-      updateRoster();
     });
 		
 });
-
-// Core APIs.
-
-function updateRoster() {
-
-	// todo: map to admin sockets
-	
-  // async.map(
-  //   sockets,
-  //   function (socket, callback) {
-  //     socket.get('name', callback);
-  //   },
-  //   function (err, names) {
-  //     broadcast('roster', names);
-  //   }
-  // );
-	
-	
-}
-
-function broadcast(event, data) {
-  sockets.forEach(function (socket) {
-    socket.emit(event, data);
-  });
-}
-
-function replyMessage() {
-  async.map(
-    messages,
-    function (socket, callback) {
-      socket.get('name', callback);
-    },
-    function (err, names) {
-      broadcast('roster', names);
-    }
-  );
-}
 
 // Tools.
 
