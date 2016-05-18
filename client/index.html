@@ -22,7 +22,7 @@
       
       // ADMIN: Our login user/pass.
       $scope.userpass   = '';
-      $scope.useradmin   = false;
+      $scope.useradmin  = false;
       
       // Packets (try to init an exsiting client *ONLY* by UUID)
       // because the Server will load the rest of the Client model #todo
@@ -32,7 +32,9 @@
         name: null,
         text: []
       };
-      $scope.packets = [$scope.client];
+      
+      // Derived from bundles.values().
+      $scope.packets = [];
       
       // New Message
       $scope.message = '';
@@ -51,24 +53,22 @@
       
       // Receive our payload Packet.
       socket.on('online', function (packet) {
-        console.log('Online.');
-        
         $scope.client = packet;        
         
         // Check if the packet is new?
-        var existingIndex   = null;
-        var existingPacket = $scope.packets.find(function (item, index, array) { 
+        var existingIndex  = null;
+        var existingPacket = $scope.packets.find(function (item, index, array) {
           existingIndex = index;
           (item.uuid == packet.uuid ? true : false);
         });
-        
+
         // Either update-in-place or swizzle the new packet into $scope?
         if (existingPacket) {
           $scope.packets[existingIndex] = packet;
         } else {
           $scope.packets.push(packet);
         }
-        
+
         // Store whatever (new or existing) UUID into localStorage.
         if (!localStorage[client_uuid_string]) {
           localStorage.setItem(client_uuid_string, $scope.client.uuid);
@@ -81,25 +81,13 @@
       
       // Send a packet/request/message.
       $scope.submitMessage = function submitMessage() {
-        console.log('Message.');
-        
-        socket.emit('message', $scope.client, $scope.message);
+        socket.emit('message', $scope.client.uuid, $scope.message);
       };
       
       socket.on('update', function (packet) {
-        console.log('Packets.');
-        
-        // Check if the packet is new?
-        var existingPacket = $scope.packets.find(function (item, index, array) {
-          
-          // Either update-in-place or swizzle the new packet into $scope?
-          if (item.uuid == packet.uuid) {
-            $scope.packets[index] = packet;
-          }
-          // } else {
-          //   $scope.packets.push(packet);
-          // }
-        });
+        // todo: support bundle changesets
+        $scope.packets = [packet];
+        console.log('message.packet:', packet);
         
         $scope.$apply();
       });
@@ -132,12 +120,12 @@
                 </tr>
               </thead>
               <tbody>
-                <tr ng-repeat="client in packets">
-                  <td class="span3" ng-bind="client.name"></td>
+                <tr ng-repeat="packet in packets">
+                  <td class="span3" ng-bind="packet.name"></td>
                   <td class="span9">
                     <table class="table">
                       <tbody>
-                        <tr ng-repeat="message in client.text">
+                        <tr ng-repeat="message in packet.text">
                           <td class="span9" ng-bind="message"></td>
                         </tr>
                       </tbody>
@@ -154,13 +142,12 @@
                 </tr>
               </tbody>
               </table>
-              
           </div>
         </div>
         </form>
       </section>
       
-      <header class="page-header row">
+      <!-- <header class="page-header row">
         <h1>Admin // Login</h1>
         <form ng-submit="login()">
           <div class="input-append">
@@ -168,7 +155,7 @@
             <input type="submit" class="btn btn-primary" value="Login" ng-disabled="!userpass">
           </div>
         </form>
-      </header>
+      </header> -->
     
     </div>
     <script src="/socket.io/socket.io.js"></script>

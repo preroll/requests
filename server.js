@@ -8,7 +8,7 @@ var http = require('http');
 var path = require('path');
 
 var async     = require('async');
-var socketio   = require('socket.io');
+var socketio  = require('socket.io');
 var express   = require('express');
 
 //
@@ -24,13 +24,13 @@ var io = socketio.listen(server);
 router.use(express.static(path.resolve(__dirname, 'client')));
 
 // Sockets.
-var sockets   = [];
+var sockets = [];
 
 // ADMIN: Protected arrays to store admins + messages.
-var admins    = [];
+var admins  = [];
 
 // Store uuid/name/text[] packets.
-var bundles   = [];
+var bundles = new Map();
 
 // (^^^ would use full Model/ORM in production..).
 //
@@ -44,7 +44,7 @@ io.on('connection', function (socket) {
   
   // Collect *ALL* sockets.
   sockets.push(socket);
-    
+  
   // First method a Client Socket will call to Connect/Register/Online *all* users.
   socket.on('register', function (client) {
     
@@ -58,20 +58,17 @@ io.on('connection', function (socket) {
           var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
           return v.toString(16);
       })
-      
-      // New Packet.
+
       packet = {
         uuid: uuid, 
         name: String(client.name || 'Anonymous'),
         text: []
       }
-      console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
-      console.log('Register packet:', packet.uuid);
-      
-      // Set our server-side packet.
+      // Set our server-side packet(s).
       // todo: verify csrf or get the uuid and load from ORM
       // before pushing into our server.packets.
-      bundles.push({socket: socket, packet: packet});
+      bundles.set(packet.uuid, {socket: socket, packet: packet});
+      console.log('Register packet:', packet.uuid);
       
     } else {
       // todo: add/real actual loading for existing 
@@ -87,47 +84,43 @@ io.on('connection', function (socket) {
     
     // Emit potentially updated packet to Client.
     socket.emit('online', packet);
-    
     console.log('Online packet:', packet.uuid);
-    console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+  
   });
   
   // Messaging.
-  socket.on('message', function (client, message) {
-    console.log('xxx Message xxxxxxxxxxxxxxxxxxxxxxxx');
-    console.log('client.uuid:', client.uuid);
-    console.log('message.text:', message);
-
-    // todo: scrub message from client
-    var text = String(message || '');
-    if (!text)
-      return;
+  socket.on('message', function (clientuuid, message) {
+    //console.log('message.clientuuid:', clientuuid);
+    //console.log('message.message:',    message);
     
     // Our potential return packet.
     var packet = null;
-  
-    bundles.map(function (bundle, index, array) { 
-      if (bundle.packet.uuid == client.uuid) {
-        // todo: error check packet->client to resist client side slipstreaming
-        bundle = bundles[index];
+    
+    // Get the packet.
+    // todo: error check packet->client to resist client side slipstreaming.
+    if (bundles.has(clientuuid)) {
+      var bundle = bundles.get(clientuuid)
+      //console.log('message.bundle:', bundle);
       
-        // update the client's messages
-        bundle.packet.text.push(message)
-        
-        // collect the packet for return.
-        packet = bundle.packet;
-        
-        // Our updates.
-        socket.emit('update', bundle.packet);
-      }
-    });
+      // Update the packet's text messages.    
+      // todo: scrub message from client
+      var packet = bundle.packet;
+      
+      packet.text.push(String(message || ''));
+      
+      // Update the bundle/packets.
+      bundles = bundles.set(clientuuid, {socket: socket, packet: packet});
+      
+      socket.emit('update', packet);
+    }
+    console.log('message.bundles:', bundles);
     
     // todo: update *all* other sockets that we have a new packet
-    console.log('xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
   });
-    
+  
   // Exit.
   socket.on('disconnect', function () {
+    // todo: remove the socket from the bundle as well..
     sockets.splice(sockets.indexOf(socket), 1);
   });
   
