@@ -1,4 +1,48 @@
 body {
 	text: #424242;
 	background-color: #eff2f5;
+	position: relative;
+}
+
+#requests {
+	min-height: 640px;
+	background-color: #f9f9f9;
+	padding: 0;
+}
+
+#messagescontainer:first-child .messagebox {
+	display: block;
+}
+
+.messagetable {
+	margin: 10px;
+	overflow: visible;
+	width: 100%;
+	display: block;
+	border-left: 3px dotted #ecebeb;
+	padding-left: 10px;
+	padding-bottom: 0;
+}
+
+#messagebox {
+	padding: 10px 10px 0;
+	vertical-align: middle;
+	border: 1px solid #e0e0e0;
+	border-radius: 3px;
+	margin-bottom: 0;
+	background-color: #797979;
+	position: relative;
+	display: block;
+	overflow: visible;
+	width: 800px;
+}
+
+#message input[type=submit] {
+	margin-top: -10px;
+}
+
+div.messages .messagetable
+
+header.page-header.row {
+	margin: 0;
 }

@@ -32,12 +32,15 @@ var admins  = [];
 // Store uuid/name/text[] packets.
 var bundles = new Map();
 
-// (^^^ would use full Model/ORM in production..).
-//
-// var examplePacket = {
-//   uuid: uuid(),
-//   name: String(name || 'Anon')
-//   text: ['lorem ipsum dolar']
+// bundles: %{
+//   client.uuid: {
+//     socket: socket,
+//     packet: {
+//       uuid: client.uuid,
+//       name: client.name,
+//       text: String(message || '')
+//     }
+//   }
 // }
 
 io.on('connection', function (socket) {
@@ -52,23 +55,16 @@ io.on('connection', function (socket) {
     var packet = null;
     
     if (!client || !client.uuid) {
-      // Generate a default UUID-based Packet.
-      // http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
-      var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-          var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
-          return v.toString(16);
-      })
-
       packet = {
-        uuid: uuid, 
-        name: String(client.name || 'Anonymous'),
-        text: []
-      }
+        uuid: generateUUID(), 
+        name: String(client.name || 'Anonymous'), 
+        text: ''
+      };
+      
       // Set our server-side packet(s).
       // todo: verify csrf or get the uuid and load from ORM
       // before pushing into our server.packets.
       bundles.set(packet.uuid, {socket: socket, packet: packet});
-      console.log('Register packet:', packet.uuid);
       
     } else {
       // todo: add/real actual loading for existing 
@@ -77,43 +73,41 @@ io.on('connection', function (socket) {
       // Existing Packet.
       packet = {
         uuid: client.uuid, 
-        name: String(client.name || 'Anonymous'),
-        text: []
-      }
+        name: client.name,
+        text: client.text
+      };
     }
     
     // Emit potentially updated packet to Client.
     socket.emit('online', packet);
-    console.log('Online packet:', packet.uuid);
-  
+    
   });
   
   // Messaging.
-  socket.on('message', function (clientuuid, message) {
-    //console.log('message.clientuuid:', clientuuid);
-    //console.log('message.message:',    message);
-    
+  socket.on('message', function (client, message) {
     // Our potential return packet.
     var packet = null;
     
     // Get the packet.
     // todo: error check packet->client to resist client side slipstreaming.
-    if (bundles.has(clientuuid)) {
-      var bundle = bundles.get(clientuuid)
-      //console.log('message.bundle:', bundle);
+    if (bundles.has(client.uuid)) {
+      var bundle = bundles.get(client.uuid);
+      
+      var packet = null;
       
       // Update the packet's text messages.    
       // todo: scrub message from client
-      var packet = bundle.packet;
+      packet = {
+        uuid: client.uuid,
+        name: client.name, 
+        text: String(message || '')
+      };
       
-      packet.text.push(String(message || ''));
+      // Push the *new* message into the packet.
+      bundles.set(packet.uuid, {socket: socket, packet: packet});
       
-      // Update the bundle/packets.
-      bundles = bundles.set(clientuuid, {socket: socket, packet: packet});
-      
-      socket.emit('update', packet);
+      socket.emit('receive', packet);      
     }
-    console.log('message.bundles:', bundles);
     
     // todo: update *all* other sockets that we have a new packet
   });
@@ -126,6 +120,14 @@ io.on('connection', function (socket) {
   
 });
 
+function generateUUID () {
+  // Generate a default UUID-based Packet.
+  // http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
+  var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random()*16|0, v = c == 'x' ? r : (r&0x3|0x8);
+      return v.toString(16);
+  })
+}
 // Server
 
 server.listen(process.env.PORT || 3000, process.env.IP || "0.0.0.0", function(){
