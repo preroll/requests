@@ -1,38 +1,32 @@
 //
-// # SimpleServer
+// # Requests
 //
 // A simple chat server using Socket.IO, Express, and Async.
-//
 
-var http = require('http');
-var path = require('path');
+// Credits.
+// An excellent Angular Recursive Tree example: 
+// http://jsfiddle.net/brendanowen/uXbn6/8/
 
+var http      = require('http');
+var path      = require('path');
 var async     = require('async');
 var socketio  = require('socket.io');
 var express   = require('express');
+var router    = express();
 
-//
-// ## SimpleServer `SimpleServer(obj)`
-//
-// Creates a new instance of SimpleServer with the following options:
-//  * `port` - The HTTP port to listen on. If `process.env.PORT` is set, _it overrides this value_.
-//
-var router = express();
-var server = http.createServer(router);
-var io = socketio.listen(server);
+var server    = http.createServer(router);
+var io        = socketio.listen(server);
 
+// Config.
 router.use(express.static(path.resolve(__dirname, 'client')));
 
-// Sockets.
+// Collect *ALL* sockets.
 var sockets = [];
 
-// ADMIN: Protected arrays to store admins + messages.
-var admins  = [];
+// Store Packets similar to {uuid/name/text}.
+var packets = new Map();
 
-// Store uuid/name/text[] packets.
-var bundles = new Map();
-
-// bundles: %{
+// packets: %{
 //   client.uuid: {
 //     socket: socket,
 //     packet: {
@@ -44,27 +38,26 @@ var bundles = new Map();
 // }
 
 io.on('connection', function (socket) {
-  
-  // Collect *ALL* sockets.
   sockets.push(socket);
   
   // First method a Client Socket will call to Connect/Register/Online *all* users.
-  socket.on('register', function (client) {
+  socket.on('register', function (clientPacket) {
     
     // Our return packet.
     var packet = null;
     
-    if (!client || !client.uuid) {
+    if (!clientPacket || !clientPacket.uuid) {
+      // todo: verify the uuid 
       packet = {
         uuid: generateUUID(), 
-        name: String(client.name || 'Anonymous'), 
+        name: 'Anonymous', 
         text: ''
       };
       
       // Set our server-side packet(s).
       // todo: verify csrf or get the uuid and load from ORM
       // before pushing into our server.packets.
-      bundles.set(packet.uuid, {socket: socket, packet: packet});
+      packets.set(packet.uuid, {socket: socket, packet: packet});
       
     } else {
       // todo: add/real actual loading for existing 
@@ -80,7 +73,6 @@ io.on('connection', function (socket) {
     
     // Emit potentially updated packet to Client.
     socket.emit('online', packet);
-    
   });
   
   // Messaging.
@@ -90,8 +82,8 @@ io.on('connection', function (socket) {
     
     // Get the packet.
     // todo: error check packet->client to resist client side slipstreaming.
-    if (bundles.has(client.uuid)) {
-      var bundle = bundles.get(client.uuid);
+    if (packets.has(client.uuid)) {
+      var bundle = packets.get(client.uuid);
       
       var packet = null;
       
@@ -104,7 +96,7 @@ io.on('connection', function (socket) {
       };
       
       // Push the *new* message into the packet.
-      bundles.set(packet.uuid, {socket: socket, packet: packet});
+      packets.set(packet.uuid, {socket: socket, packet: packet});
       
       socket.emit('receive', packet);      
     }

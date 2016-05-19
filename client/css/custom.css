@@ -4,31 +4,43 @@ body {
 	position: relative;
 }
 
-#requests {
-	min-height: 640px;
-	background-color: #f9f9f9;
-	padding: 0;
+input[type=text],
+.messagetable p.text {
+	font: 133% "Helvetica Neue-Light", Arial, Helvetica, Geneva, sans-serif;
+	font-weight: bold;
+	line-height: 166%;
 }
 
-#messagescontainer:first-child .messagebox {
-	display: block;
+#messages {
+	background-color: #f9f9f9;
+	padding: 0;
+	overflow: hidden;
 }
 
 .messagetable {
-	margin: 10px;
+	margin: 10px 10px 10px 0;
 	overflow: visible;
 	width: 100%;
 	display: block;
 	border-left: 3px dotted #ecebeb;
 	padding-left: 10px;
 	padding-bottom: 0;
+	background-color: rgba(242, 241, 241, 0.86);
+}
+
+.messagetable p.text {
+	
+}
+
+.messagetable p.name {
+	border-top: 1px dashed #d6d8dc;
+	margin-right: 10px;
 }
 
 #messagebox {
 	padding: 10px 10px 0;
 	vertical-align: middle;
 	border: 1px solid #e0e0e0;
-	border-radius: 3px;
 	margin-bottom: 0;
 	background-color: #797979;
 	position: relative;
@@ -41,7 +53,6 @@ body {
 	margin-top: -10px;
 }
 
-div.messages .messagetable
 
 header.page-header.row {
 	margin: 0;

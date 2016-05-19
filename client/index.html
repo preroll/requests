@@ -13,81 +13,51 @@
       }
     </style>
     <script>    
-    function RequestController($scope) {
+    function MessageController($scope) {
       var socket = io.connect();
-      
-      // Credits.
-      // http://jsfiddle.net/brendanowen/uXbn6/8/
-      
+
       // Vars.
       
       var client_uuid_string = 'client.uuid';
       
-      // ADMIN: Our login user/pass.
-      // $scope.userpass   = '';
-      // $scope.useradmin  = false;
-      
       // Packets (try to init an exsiting client *ONLY* by UUID)
       // because the Server will load the rest of the Client model #todo
-      $scope.client = {
-        //uuid: String(localStorage[client_uuid_string] || ''),
-        uuid: null,
+      $scope.clientPacket = {
+        uuid: '',
         name: null,
         text: ''
       };
-      
-      // Derived from bundles.values().
-      $scope.packages = new Map();
-      
-      // packages: %{
-      //   client.name: {
-             
-      //     packet: {
-      //       uuid: client.uuid,
-      //       name: client.name,
-      //       text: String(message || '')
-      //     }
-      //   ]
-      // }
-      
-      // New Message
-      $scope.message = '';
-      
+
       // Connect APIs.
       ////////////////
       
       // Connect *ALL* clients.
       socket.on('connect', function () {
-        $scope.register($scope.client);
+        $scope.register($scope.clientPacket);
       });
       
       // Register *UNIQUE* clients.
       $scope.register = function register(client) {
+        // try to grab a stored client.uuid
+        var clientStorage = localStorage[client_uuid_string];
+        
+        if(clientStorage) { 
+          client.uuid = String(clientStorage.uuid || '') 
+        };
+        
         socket.emit('register', client);
       };
       
       // Receive our payload Packet.
       socket.on('online', function (packet) {
-        $scope.client = packet;        
+        // #todo: verify and store.
+        $scope.clientPacket = packet;        
         
-        // // Check if the packet is new?
-        // var existingIndex  = null;
-        // var existingPacket = $scope.packets.find(function (item, index, array) {
-        //   existingIndex = index;
-        //   (item.uuid == packet.uuid ? true : false);
-        // });
-        //
-        // // Either update-in-place or swizzle the new packet into $scope?
-        // if (existingPacket) {
-        //   $scope.packets[existingIndex] = packet;
-        // } else {
-        //   $scope.packets.push(packet);
-        // }
-        //
-        // // Store whatever (new or existing) UUID into localStorage.
-        // if (!localStorage[client_uuid_string]) {
-        //   localStorage.setItem(client_uuid_string, $scope.client.uuid);
-        // }
+        // Store whatever (new or existing) clientPacket into localStorage.
+        localStorage.setItem(client_uuid_string, {
+          uuid: $scope.clientPacket.uuid, 
+          data: $scope.clientPacket
+        });
         
         $scope.$apply();
       });
@@ -98,14 +68,14 @@
       // Send a packet/request/message.
       $scope.submitMessage = function submitMessage(data) {
         var post = data.nodes.length + 1;
-        var newName = (data.name || $scope.client.name) + '-' + post;
+        var newName = '@' + (data.name || $scope.clientPacket.name);
         
-        data.nodes.push({name: newName, text: data.message, nodes: []});
+        data.nodes.push({name: newName, text: String(data.message || 'nada'), nodes: []});
         
-        $scope.message = '';
-        this.message = '';
-        data.text = '';
-        
+        $scope.message  = '';
+        this.message    = '';
+        data.text       = '';
+
         //socket.emit('message', $scope.client, $scope.message);
       };
       
@@ -130,41 +100,41 @@
       
       $scope.tree = [{
         show: true,
-        name: $scope.client.name, 
+        name: $scope.clientPacket.name, 
         text: $scope.message, 
         nodes: []}];
-    }
+      }
+    
     </script>
   </head>
   <body>
-    <div class="container" ng-controller="RequestController">
+  <div class="container" ng-controller="MessageController">
     
-    <header class="">
+    <!-- <header class="">
       <h1>Admin // Login</h1>
-      
+
       <form ng-submit="login()">
         <div class="input-append">
           <input type="password" class="span6" ng-model="userpass" placeholder="">
           <input type="submit" class="btn btn-primary" value="Login" ng-disabled="!userpass">
         </div>
       </form>
-    </header>
+    </header> -->
     
     <section id="requests" ng-model="requests">
       
     <form id="message" ng-submit="submitMessage()">
       <header>
         <h1>Hi...</h1>
-        <input type="text" class="span4" ng-model="client.name" placeholder="Nickname">
+        <input type="text" class="span4" ng-model="clientPacket.name" placeholder="Nickname">
       </header>
       
       <div class="row">
-      <div id="requests" class="span12">
+      <div id="messages" class="span12">
         <h1>All Messages(s)</h1>
         
-        <div 
-          class="messages table table-striped table-bordered" 
-          ng-app="Application" ng-controller="RequestController">
+        <div ng-app="Application" ng-controller="MessageController"
+          class="messages table table-striped ">
           
           <div id="messagescontainer" ng-repeat="data in tree" ng-include="'tree_item_renderer.html'"></div>
         </div>
@@ -175,24 +145,22 @@
     
     </section>
     </div>
-
+    
     <script type="text/ng-template" id="tree_item_renderer.html">
-      <div class="messagetable" ng-click="data.show = true">
-        <h4>{{data.name}}</h4>
-        <h5>{{data.text}}</h5>
+      <div class="messagetable">
+        <p class="text">{{data.text}}</p>
+        <p class="name">{{data.name}}
+          <input type="submit" ng-click="data.show = !data.show" class="span1 btn btn-primary" value="...">
+        </p>
         
-        <!-- <button ng-click="delete(data)" ng-show="data.nodes.length > 0">Delete nodes</button> -->
         <div ng-repeat="data in data.nodes" ng-include="'tree_item_renderer.html'"></div>
-        
-        <div class="messagebox" ng-hide="!data.show">
-          <input type="submit" ng-click="submitMessage(data)" class="span3 btn btn-primary" value="Says!">
-          <input type="text" class="span7" ng-model="data.message" placeholder="Your Message">          
-        </div>
-        
-      </div>
-        
 
-        
+        <div class="messagebox" ng-hide="!data.show">
+          <input type="submit" ng-click="submitMessage(data)" class="btn btn-primary" value="Say!">
+          <input type="text" class="span7" ng-model="data.message" placeholder="New Message...">          
+        </div>
+      </div>
+      
     </script>
     
     <script src="/socket.io/socket.io.js"></script>
